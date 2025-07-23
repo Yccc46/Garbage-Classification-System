@@ -16,10 +16,12 @@ def generate_otp():
 # Send email using Brevo API
 def send_email_brevo(to_email, subject, content):
     url = "https://api.brevo.com/v3/smtp/email"
+    api_key = os.getenv("BREVO_API_KEY")  
+    print("KEY:", api_key)  
+
     headers = {
         "accept": "application/json",
-        "api-key": os.getenv("BREVO_API_KEY"),  
-        print("KEY:", api_key),
+        "api-key": api_key,
         "content-type": "application/json"
     }
     data = {
@@ -38,7 +40,7 @@ def send_email_brevo(to_email, subject, content):
         print("Email error:", str(e))
         return False
 
-@app.route('/request_otp', methods=['POST'])
+@app.route('/send_otp_email', methods=['POST'])
 def request_otp():
     data = request.get_json()
     email = data.get('email')
