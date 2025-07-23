@@ -60,9 +60,9 @@ def request_otp():
     )
 
     if success:
-    return jsonify({'success': True, 'message': 'OTP sent successfully'}), 200
+        return jsonify({'success': True, 'message': 'OTP sent successfully'}), 200
     else:
-    return jsonify({'success': False, 'error': 'Failed to send OTP'}), 500
+        return jsonify({'success': False, 'error': 'Failed to send OTP'}), 500
 
 
 @app.route('/verify_otp', methods=['POST'])
