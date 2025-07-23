@@ -5,7 +5,7 @@ import time
 import requests
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path=".env") 
+load_dotenv() 
 app = Flask(__name__)
 otp_storage = {}  # {email: {otp: ..., expiry: ...}}
 
@@ -19,6 +19,7 @@ def send_email_brevo(to_email, subject, content):
     headers = {
         "accept": "application/json",
         "api-key": os.getenv("BREVO_API_KEY"),  
+        print("KEY:", api_key),
         "content-type": "application/json"
     }
     data = {
