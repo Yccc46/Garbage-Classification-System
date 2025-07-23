@@ -67,33 +67,29 @@ def request_otp():
 
 @app.route('/verify_otp', methods=['POST'])
 def verify_otp():
-    try:
-        data = request.get_json()
-        email = data.get('email')
-        otp_input = data.get('otp')
+    data = request.get_json()
+    email = data.get('email')
+    otp_input = data.get('otp')
 
-        print(f"Verifying OTP for {email} with input {otp_input}")
-        print(f"Stored OTPs: {otp_storage}")
+    print(f"Verifying OTP for {email} with input {otp_input}")
+    print(f"Stored OTPs: {otp_storage}")
 
-        if not email or not otp_input:
-            return jsonify({'success': False,'error': 'Missing email or otp'}), 400
+    if not email or not otp_input:
+        return jsonify({'success': False,'error': 'Missing email or otp'}), 400
 
-        stored = otp_storage.get(email)
-        if not stored:
-            return jsonify({'success': False,'error': 'No OTP found for this email'}), 404
+    stored = otp_storage.get(email)
+    if not stored:
+        return jsonify({'success': False,'error': 'No OTP found for this email'}), 404
 
-        if int(time.time()) > stored['expiry']:
-            return jsonify({'success': False,'error': 'OTP has expired'}), 400
+    if int(time.time()) > stored['expiry']:
+        return jsonify({'success': False,'error': 'OTP has expired'}), 400
 
-        if stored['otp'] != otp_input:
-            return jsonify({'success': False, 'error': 'Invalid OTP'}), 401
+    if stored['otp'] != otp_input:
+        return jsonify({'success': False, 'error': 'Invalid OTP'}), 401
 
-        del otp_storage[email]
-        return jsonify({'success': True, 'message': 'OTP verified successfully'}), 200
 
-    except Exception as e:
-        print(f"Error in verify_otp: {e}")
-        return jsonify({'success': False, 'error': 'Server error'}), 500
+    del otp_storage[email]
+    return jsonify({'success': True, 'message': 'OTP verified successfully'}), 200
 
 
 @app.route('/')
