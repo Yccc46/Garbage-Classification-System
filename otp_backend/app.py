@@ -60,7 +60,7 @@ def request_otp():
     )
 
     if success:
-        return jsonify({'success': True, 'message': 'OTP sent successfully', 'otp': otp}), 200
+        return jsonify({'success': True, 'message': 'OTP sent successfully'}), 200
     else:
         return jsonify({'success': False, 'error': 'Failed to send OTP'}), 500
 
