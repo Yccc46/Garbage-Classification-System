@@ -46,7 +46,7 @@ def request_otp():
     data = request.get_json()
     email = data.get('email')
     if not email:
-        return jsonify({'error': 'Missing email'}), 400
+        return jsonify({'success': False,'error': 'Missing email'}), 400
 
     otp = generate_otp()
     expiry = int(time.time()) + 300  # 5 分钟有效
@@ -72,20 +72,22 @@ def verify_otp():
     otp_input = data.get('otp')
 
     if not email or not otp_input:
-        return jsonify({'error': 'Missing email or otp'}), 400
+        return jsonify({'success': False,'error': 'Missing email or otp'}), 400
 
     stored = otp_storage.get(email)
     if not stored:
-        return jsonify({'error': 'No OTP found for this email'}), 404
+        return jsonify({'success': False,'error': 'No OTP found for this email'}), 404
 
     if int(time.time()) > stored['expiry']:
-        return jsonify({'error': 'OTP has expired'}), 400
+        return jsonify({'success': False,'error': 'OTP has expired'}), 400
 
     if stored['otp'] != otp_input:
-        return jsonify({'error': 'Invalid OTP'}), 401
+        return jsonify({'success': False, 'error': 'Invalid OTP'}), 401
+
 
     del otp_storage[email]
-    return jsonify({'message': 'OTP verified successfully'}), 200
+    return jsonify({'success': True, 'message': 'OTP verified successfully'}), 200
+
 
 @app.route('/')
 def home():
