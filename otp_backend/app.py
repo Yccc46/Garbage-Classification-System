@@ -15,7 +15,10 @@ def generate_otp():
 def send_email_brevo(to_email, subject, content):
     url = "https://api.brevo.com/v3/smtp/email"
     api_key = os.getenv("BREVO_API_KEY")  
-    print("KEY:", api_key)  
+    if not api_key:
+        print("ERROR: BREVO_API_KEY is missing!!!")
+    else:
+        print("BREVO_API_KEY is loaded.")
 
     headers = {
         "accept": "application/json",
@@ -57,9 +60,10 @@ def request_otp():
     )
 
     if success:
-        return jsonify({'message': 'OTP sent successfully'}), 200
+    return jsonify({'success': True, 'message': 'OTP sent successfully'}), 200
     else:
-        return jsonify({'error': 'Failed to send OTP'}), 500
+    return jsonify({'success': False, 'error': 'Failed to send OTP'}), 500
+
 
 @app.route('/verify_otp', methods=['POST'])
 def verify_otp():
