@@ -3,9 +3,7 @@ import os
 import random
 import time
 import requests
-from dotenv import load_dotenv
 
-load_dotenv() 
 app = Flask(__name__)
 otp_storage = {}  # {email: {otp: ..., expiry: ...}}
 
@@ -30,7 +28,7 @@ def send_email_brevo(to_email, subject, content):
         "subject": subject,
         "htmlContent": f"<p>{content}</p>"
     }
-    print("BREVO_API_KEY =", os.getenv("BREVO_API_KEY"))
+    
 
     try:
         response = requests.post(url, headers=headers, json=data)
