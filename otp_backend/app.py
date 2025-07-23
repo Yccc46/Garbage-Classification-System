@@ -70,7 +70,8 @@ def verify_otp():
     data = request.get_json()
     email = data.get('email')
     otp_input = data.get('otp')
-    print(f"Verifying OTP for {email} with input {otp}")
+    
+    print(f"Verifying OTP for {email} with input {otp_input}")
     print(f"Stored OTPs: {otp_store}")
 
     if not email or not otp_input:
