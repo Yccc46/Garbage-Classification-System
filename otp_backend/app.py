@@ -17,7 +17,7 @@ app = Flask(__name__)
 
 
 # ==== Firebase 初始化 ====
-cred = credentials.Certificate(r"C:\Users\ASUS\Documents\GitHub\Garbage-Classification-System\otp_backend\firebase-key.json")
+cred = credentials.Certificate("otp_backend/firebase-key.json")
 firebase_admin.initialize_app(cred, {
     'storageBucket': 'fyp-db-81903.firebasestorage.app'
 })
@@ -26,7 +26,7 @@ bucket = storage.bucket()
 
 # ==== 模型加载相关 ====
 IMG_SIZE = 224
-MODEL_PATH = os.environ.get("MODEL_PATH", r"C:\Users\ASUS\Documents\GitHub\Garbage-Classification-System\otp_backend\type_model_converted1.h5")
+MODEL_PATH = os.environ.get("MODEL_PATH", "otp_backend/type_model_converted1.h5")
 model = tf.keras.models.load_model(MODEL_PATH)
 
 ITEMS_INCLUDED = {
