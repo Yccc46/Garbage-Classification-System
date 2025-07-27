@@ -28,7 +28,6 @@ bucket = storage.bucket()
 IMG_SIZE = 224
 MODEL_PATH = os.environ.get("MODEL_PATH", r"C:\Users\ASUS\Documents\GitHub\Garbage-Classification-System\otp_backend\type_model_converted1.h5")
 model = tf.keras.models.load_model(MODEL_PATH)
-DATASET_PATH = r"C:\Users\ASUS\Desktop\Train Model\dataset"
 
 ITEMS_INCLUDED = {
     "recyclable": "Recyclable waste includes items like plastic bottles, cans, cartons, and paper.",
