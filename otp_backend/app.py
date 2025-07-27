@@ -10,6 +10,7 @@ import uuid
 import json
 import datetime
 import firebase_admin
+import tempfile
 from firebase_admin import credentials, firestore, storage
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
@@ -17,7 +18,15 @@ app = Flask(__name__)
 
 
 # ==== Firebase 初始化 ====
-cred = credentials.Certificate("otp_backend/firebase-key.json")
+# 读取环境变量
+firebase_key_str = os.environ.get("FIREBASE_KEY")
+
+# 将字符串写入一个临时文件
+with tempfile.NamedTemporaryFile(mode="w+", delete=False, suffix=".json") as temp_key_file:
+    temp_key_file.write(firebase_key_str)
+    temp_key_path = temp_key_file.name
+
+cred = credentials.Certificate(temp_key_path)
 firebase_admin.initialize_app(cred, {
     'storageBucket': 'fyp-db-81903.firebasestorage.app'
 })
@@ -205,9 +214,6 @@ def verify_otp():
 @app.route('/')
 def home():
     return " OTP Flask backend is running on Render!"
-
-def index():
-    return '✅ Version 20250728'
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
