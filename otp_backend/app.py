@@ -3,8 +3,125 @@ import os
 import random
 import time
 import requests
+import cv2
+import numpy as np
+import tensorflow as tf
+import uuid
+import datetime
+import firebase_admin
+from firebase_admin import credentials, firestore, storage
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 app = Flask(__name__)
+
+
+# ==== Firebase 初始化 ====
+cred = credentials.Certificate(r"C:\Users\ASUS\Desktop\Train Model\firebase-key.json")
+firebase_admin.initialize_app(cred, {
+    'storageBucket': 'fyp-db-81903.firebasestorage.app'
+})
+db = firestore.client()
+bucket = storage.bucket()
+
+# ==== 模型加载相关 ====
+IMG_SIZE = 224
+MODEL_PATH = os.environ.get("MODEL_PATH", r"C:\Users\ASUS\Desktop\Train Model\Save Model\type_model_converted1.h5")
+model = tf.keras.models.load_model(MODEL_PATH)
+DATASET_PATH = r"C:\Users\ASUS\Desktop\Train Model\dataset"
+
+ITEMS_INCLUDED = {
+    "recyclable": "Recyclable waste includes items like plastic bottles, cans, cartons, and paper.",
+    "residual": "Residual waste includes food-soiled paper, broken ceramics, and contaminated plastics.",
+    "hazardous": "Hazardous waste includes batteries, paints, pesticides, and electronic waste.",
+    "kitchen": "Kitchen waste includes food scraps, vegetable peels, tea leaves, and expired leftovers."
+}
+
+# 分类名称
+def load_class_indices():
+    datagen = ImageDataGenerator(rescale=1./255)
+    generator = datagen.flow_from_directory(
+        DATASET_PATH, 
+        target_size=(IMG_SIZE, IMG_SIZE),
+        batch_size=1,
+        class_mode='categorical'
+    )
+    return {v: k for k, v in generator.class_indices.items()}
+
+CLASS_INDEX_TO_CLASSNAME = load_class_indices()
+
+def is_dark(image):
+    """判断图像是否过暗（灰度均值小于某阈值）"""
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    brightness = np.mean(gray)
+    return brightness < 100  # 你可以根据实际图像情况调整这个阈值
+
+def preprocess_image(image):
+    if is_dark(image):
+        # 暗图增强：CLAHE + Laplacian
+        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0)
+        cl = clahe.apply(l)
+        limg = cv2.merge((cl, a, b))
+        img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+    else:
+        # 正常图：原图直接处理
+        img = image
+
+    # Laplacian 锐化
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+    laplacian = cv2.convertScaleAbs(laplacian)
+
+    resized = cv2.resize(laplacian, (IMG_SIZE, IMG_SIZE))
+    input_tensor = resized.reshape(1, IMG_SIZE, IMG_SIZE, 1) / 255.0  # 单通道模型输入
+    return input_tensor
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    file = request.files.get('image')
+    user_id = request.form.get('userId')
+    
+    if not file:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    image_bytes = file.read()
+    image = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
+
+    # 预处理
+    processed_image = preprocess_image(image)
+    input_tensor = processed_image
+
+    # 预测
+    prediction = model.predict(input_tensor)
+    category_index = np.argmax(prediction[0])
+    category = CLASS_INDEX_TO_CLASSNAME[category_index]
+    category_id = category  # 如果 category 名称就对应 Category collection 的 doc ID
+    description = ITEMS_INCLUDED.get(category, "")
+
+    # 上传到 Firebase Storage
+    image_id = str(uuid.uuid4())
+    blob = bucket.blob(f'userHistory/{user_id}/{image_id}.jpg')
+    blob.upload_from_string(image_bytes, content_type='image/jpeg')
+    image_url = blob.generate_signed_url(datetime.timedelta(days=730))  # 2年有效期
+
+    # 获取 Category document 的 reference
+    category_ref = db.collection('Category').document(category_id)
+
+    # 写入 Firestore，Category 字段使用 Reference 类型
+    history_ref = db.collection('User').document(user_id).collection('History').document()
+    history_ref.set({
+        "Image_URL": image_url,
+        "Category": category_ref,
+        "Operation_Type": "Image Recognition",
+                "Content": description,
+        "Stored_Date": firestore.SERVER_TIMESTAMP
+    })
+
+    return jsonify({"category": category_id, "imageUrl": image_url,"description": description})
+
+
+# ==== OTP 功能 ====
 otp_storage = {}  # {email: {otp: ..., expiry: ...}}
 
 # Generate 5-digit OTP
@@ -95,6 +212,9 @@ def verify_otp():
 @app.route('/')
 def home():
     return " OTP Flask backend is running on Render!"
+
+def index():
+    return '✅ Version 20250728'
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
