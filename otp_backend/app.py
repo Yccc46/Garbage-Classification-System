@@ -35,8 +35,12 @@ bucket = storage.bucket()
 
 # ==== 模型加载相关 ====
 IMG_SIZE = 224
-MODEL_PATH = os.environ.get("MODEL_PATH", "otp_backend/type_model_converted1.h5")
-model = tf.keras.models.load_model(MODEL_PATH)
+MODEL_PATH = os.environ.get("MODEL_PATH", "otp_backend/model.tflite")
+interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
+interpreter.allocate_tensors()
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
 
 ITEMS_INCLUDED = {
     "recyclable": "Recyclable waste includes items like plastic bottles, cans, cartons, and paper.",
@@ -52,14 +56,14 @@ with open("class_indices.json", "r") as f:
 
 
 def is_dark(image):
-    """判断图像是否过暗（灰度均值小于某阈值）"""
+    #Define darkness
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     brightness = np.mean(gray)
-    return brightness < 100  # 你可以根据实际图像情况调整这个阈值
+    return brightness < 100  
 
 def preprocess_image(image):
     if is_dark(image):
-        # 暗图增强：CLAHE + Laplacian
+        # enhancement：CLAHE + Laplacian
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
         clahe = cv2.createCLAHE(clipLimit=2.0)
@@ -67,16 +71,16 @@ def preprocess_image(image):
         limg = cv2.merge((cl, a, b))
         img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
     else:
-        # 正常图：原图直接处理
+        # normal image
         img = image
 
-    # Laplacian 锐化
+    # Laplacian sharpening
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     laplacian = cv2.Laplacian(gray, cv2.CV_64F)
     laplacian = cv2.convertScaleAbs(laplacian)
 
     resized = cv2.resize(laplacian, (IMG_SIZE, IMG_SIZE))
-    input_tensor = resized.reshape(1, IMG_SIZE, IMG_SIZE, 1) / 255.0  # 单通道模型输入
+    input_tensor = resized.reshape(1, IMG_SIZE, IMG_SIZE, 1) / 255.0  # one channel model input
     return input_tensor
 
 @app.route('/predict', methods=['POST'])
@@ -90,27 +94,30 @@ def predict():
     image_bytes = file.read()
     image = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
 
-    # 预处理
+    # Preprocessing
     processed_image = preprocess_image(image)
     input_tensor = processed_image
 
-    # 预测
-    prediction = model.predict(input_tensor)
+    # Predict
+    interpreter.set_tensor(input_details[0]['index'], input_tensor.astype(np.float32))
+    interpreter.invoke()
+    prediction = interpreter.get_tensor(output_details[0]['index'])
+
     category_index = np.argmax(prediction[0])
     category = CLASS_INDEX_TO_CLASSNAME[category_index]
-    category_id = category  # 如果 category 名称就对应 Category collection 的 doc ID
+    category_id = category  
     description = ITEMS_INCLUDED.get(category, "")
 
-    # 上传到 Firebase Storage
+    # Upload to Firebase Storage
     image_id = str(uuid.uuid4())
     blob = bucket.blob(f'userHistory/{user_id}/{image_id}.jpg')
     blob.upload_from_string(image_bytes, content_type='image/jpeg')
-    image_url = blob.generate_signed_url(datetime.timedelta(days=730))  # 2年有效期
+    image_url = blob.generate_signed_url(datetime.timedelta(days=730))  # 2 year life cycles
 
-    # 获取 Category document 的 reference
+    # Get Category document reference
     category_ref = db.collection('Category').document(category_id)
 
-    # 写入 Firestore，Category 字段使用 Reference 类型
+    # Write Firestore，Category as Reference type
     history_ref = db.collection('User').document(user_id).collection('History').document()
     history_ref.set({
         "Image_URL": image_url,
@@ -123,7 +130,7 @@ def predict():
     return jsonify({"category": category_id, "imageUrl": image_url,"description": description})
 
 
-# ==== OTP 功能 ====
+# ==== OTP Function ====
 otp_storage = {}  # {email: {otp: ..., expiry: ...}}
 
 # Generate 5-digit OTP
@@ -168,7 +175,7 @@ def request_otp():
         return jsonify({'success': False,'error': 'Missing email'}), 400
 
     otp = generate_otp()
-    expiry = int(time.time()) + 300  # 5 分钟有效
+    expiry = int(time.time()) + 300  # valid in 5 minutes
 
     otp_storage[email] = {"otp": otp, "expiry": expiry}
 
