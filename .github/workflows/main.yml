@@ -30,4 +30,4 @@ jobs:
         run: echo "${{ secrets.renderKey }}" > otp_backend/renderKey.env
 
       - name: Run script
-        run: cd otp_backend python app.py
+        run: cd otp_backend && python app.py
