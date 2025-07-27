@@ -2,7 +2,8 @@ flask
 flask-cors
 python-dotenv
 firebase-admin
-numpy
-tensorflow==2.13.0
-opencv-python-headless==4.8.0.74
 requests
+numpy
+opencv-python-headless==4.8.0.74
+tensorflow==2.13.0
+typing-extensions==4.5.0
