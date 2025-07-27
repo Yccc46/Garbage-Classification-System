@@ -1,4 +1,8 @@
 flask
 flask-cors
 python-dotenv
+firebase-admin
+numpy
+opencv-python-headless
+tensorflow
 requests
