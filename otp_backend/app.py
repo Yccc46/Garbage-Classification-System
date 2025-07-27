@@ -35,7 +35,9 @@ bucket = storage.bucket()
 
 # ==== 模型加载相关 ====
 IMG_SIZE = 224
-MODEL_PATH = os.environ.get("MODEL_PATH", "otp_backend/model.tflite")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "otp_backend","model.tflite")
+
 interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
 interpreter.allocate_tensors()
 input_details = interpreter.get_input_details()
@@ -62,25 +64,25 @@ def is_dark(image):
     return brightness < 100  
 
 def preprocess_image(image):
+    # Step 1: CLAHE enhancement if image is dark
     if is_dark(image):
-        # enhancement：CLAHE + Laplacian
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
         clahe = cv2.createCLAHE(clipLimit=2.0)
         cl = clahe.apply(l)
         limg = cv2.merge((cl, a, b))
-        img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-    else:
-        # normal image
-        img = image
+        image = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
 
-    # Laplacian sharpening
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # Step 2: Laplacian sharpening on grayscale, then blend back
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     laplacian = cv2.Laplacian(gray, cv2.CV_64F)
     laplacian = cv2.convertScaleAbs(laplacian)
+    sharpened = cv2.addWeighted(image, 1.0, cv2.cvtColor(laplacian, cv2.COLOR_GRAY2BGR), 0.3, 0)
 
-    resized = cv2.resize(laplacian, (IMG_SIZE, IMG_SIZE))
-    input_tensor = resized.reshape(1, IMG_SIZE, IMG_SIZE, 1) / 255.0  # one channel model input
+    # Step 3: Resize + Normalize
+    resized = cv2.resize(sharpened, (IMG_SIZE, IMG_SIZE))
+    input_tensor = resized.astype(np.float32) / 255.0
+    input_tensor = input_tensor.reshape(1, IMG_SIZE, IMG_SIZE, 3)
     return input_tensor
 
 @app.route('/predict', methods=['POST'])
