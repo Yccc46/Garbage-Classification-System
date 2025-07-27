@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import uuid
+import json
 import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
@@ -16,7 +17,7 @@ app = Flask(__name__)
 
 
 # ==== Firebase 初始化 ====
-cred = credentials.Certificate(r"C:\Users\ASUS\Desktop\Train Model\firebase-key.json")
+cred = credentials.Certificate(r"C:\Users\ASUS\Documents\GitHub\Garbage-Classification-System\otp_backend\firebase-key.json")
 firebase_admin.initialize_app(cred, {
     'storageBucket': 'fyp-db-81903.firebasestorage.app'
 })
@@ -25,7 +26,7 @@ bucket = storage.bucket()
 
 # ==== 模型加载相关 ====
 IMG_SIZE = 224
-MODEL_PATH = os.environ.get("MODEL_PATH", r"C:\Users\ASUS\Desktop\Train Model\Save Model\type_model_converted1.h5")
+MODEL_PATH = os.environ.get("MODEL_PATH", r"C:\Users\ASUS\Documents\GitHub\Garbage-Classification-System\otp_backend\type_model_converted1.h5")
 model = tf.keras.models.load_model(MODEL_PATH)
 DATASET_PATH = r"C:\Users\ASUS\Desktop\Train Model\dataset"
 
@@ -37,17 +38,10 @@ ITEMS_INCLUDED = {
 }
 
 # 分类名称
-def load_class_indices():
-    datagen = ImageDataGenerator(rescale=1./255)
-    generator = datagen.flow_from_directory(
-        DATASET_PATH, 
-        target_size=(IMG_SIZE, IMG_SIZE),
-        batch_size=1,
-        class_mode='categorical'
-    )
-    return {v: k for k, v in generator.class_indices.items()}
+# 加载 class_indices
+with open("class_indices.json", "r") as f:
+    CLASS_INDEX_TO_CLASSNAME = json.load(f)
 
-CLASS_INDEX_TO_CLASSNAME = load_class_indices()
 
 def is_dark(image):
     """判断图像是否过暗（灰度均值小于某阈值）"""
