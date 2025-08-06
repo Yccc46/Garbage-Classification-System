@@ -36,7 +36,7 @@ bucket = storage.bucket()
 # ==== 模型加载相关 ====
 IMG_SIZE = 224
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR,"model.tflite")
+MODEL_PATH = os.path.join(BASE_DIR,"mobilenet_final_model_2.h5")
 
 interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
 interpreter.allocate_tensors()
