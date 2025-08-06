@@ -53,7 +53,9 @@ ITEMS_INCLUDED = {
 
 # 分类名称
 # 加载 class_indices
-with open(r"C:\Users\ASUS\Documents\GitHub\Garbage-Classification-System\otp_backend\class_indices.json", "r") as f:
+CLASS_INDEX_PATH = os.path.join(BASE_DIR, "class_indices.json")
+
+with open(CLASS_INDEX_PATH, "r") as f:
     CLASS_INDEX_TO_CLASSNAME = json.load(f)
     
 CLASS_INDEX_TO_CLASSNAME = {int(k): v for k, v in CLASS_INDEX_TO_CLASSNAME.items()}
