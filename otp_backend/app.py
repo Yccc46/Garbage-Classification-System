@@ -117,7 +117,11 @@ def predict():
     image_id = str(uuid.uuid4())
     blob = bucket.blob(f'userHistory/{user_id}/{image_id}.jpg')
     blob.upload_from_string(image_bytes, content_type='image/jpeg')
-    image_url = blob.generate_signed_url(datetime.timedelta(days=730))  # 2 year life cycles
+    # 设置为公开访问
+    blob.make_public()
+
+    # 获取公开 URL
+    image_url = blob.public_url
 
     # Get Category document reference
     category_ref = db.collection('Category').document(category_id)
