@@ -60,33 +60,35 @@ with open(CLASS_INDEX_PATH, "r") as f:
     
 CLASS_INDEX_TO_CLASSNAME = {int(k): v for k, v in CLASS_INDEX_TO_CLASSNAME.items()}
 
-def is_dark(image):
-    #Define darkness
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    brightness = np.mean(gray)
-    return brightness < 100  
+def apply_clahe_laplacian(img):
+      img = np.uint8(img * 255)  # 将归一化图像还原
+      img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # keras 默认是 RGB
+      lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+      l, a, b = cv2.split(lab)
+
+      clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+      cl = clahe.apply(l)
+
+      merged = cv2.merge((cl, a, b))
+      enhanced = cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
+
+      laplacian = cv2.Laplacian(enhanced, cv2.CV_64F)
+      laplacian = cv2.convertScaleAbs(laplacian)
+      combined = cv2.addWeighted(enhanced, 0.8, laplacian, 0.2, 0)
+
+      combined_rgb = cv2.cvtColor(combined, cv2.COLOR_BGR2RGB)
+      return combined_rgb / 255.0  # 返回归一化后的 RGB 图像
+
 
 def preprocess_image(image):
-    # Step 1: CLAHE enhancement if image is dark
-    if is_dark(image):
-        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0)
-        cl = clahe.apply(l)
-        limg = cv2.merge((cl, a, b))
-        image = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+    # Resize
+    img_array = cv2.resize(image,(224,224))
+    
+    # CLAHE + Laplacian
+    img_array = apply_clahe_laplacian(img_array)
 
-    # Step 2: Laplacian sharpening on grayscale, then blend back
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    laplacian = cv2.Laplacian(gray, cv2.CV_64F)
-    laplacian = cv2.convertScaleAbs(laplacian)
-    sharpened = cv2.addWeighted(image, 1.0, cv2.cvtColor(laplacian, cv2.COLOR_GRAY2BGR), 0.3, 0)
+    return img_array.astype(np.float32)
 
-    # Step 3: Resize + Normalize
-    resized = cv2.resize(sharpened, (IMG_SIZE, IMG_SIZE))
-    input_tensor = resized.astype(np.float32) / 255.0
-    input_tensor = input_tensor.reshape(1, IMG_SIZE, IMG_SIZE, 3)
-    return input_tensor
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -101,10 +103,10 @@ def predict():
 
     # Preprocessing
     processed_image = preprocess_image(image)
-    input_tensor = processed_image
+    input_tensor = np.expand_dims(processed_image, axis=0)
 
     # Predict
-    interpreter.set_tensor(input_details[0]['index'], input_tensor.astype(np.float32))
+    interpreter.set_tensor(input_details[0]['index'], input_tensor)
     interpreter.invoke()
     prediction = interpreter.get_tensor(output_details[0]['index'])
 
