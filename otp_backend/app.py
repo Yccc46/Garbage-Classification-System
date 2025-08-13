@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
 import random
 import time
@@ -16,6 +17,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 app = Flask(__name__)
 
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # ==== Firebase 初始化 ====
 # 读取环境变量
